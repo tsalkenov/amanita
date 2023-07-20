@@ -2,7 +2,7 @@
 name = "amanita"
 version = "0.1.0"
 authors = ["Tamerlan Salkenov <catamana@proton.me."]
-description = "amanita is minimal command line process managing tool"
+description = "minimal process managing tool"
 homepage = "https://github.com/tsalkenov/amanita"
 repository = "https://github.com/tsalkenov/amanita"
 categories = ["command-line-utilities"]

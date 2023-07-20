@@ -4,6 +4,7 @@ use crate::state::{ProcState, ProcStatus};
 
 #[derive(Args)]
 pub struct KillArgs {
+    /// Process name
     name: String,
 }
 

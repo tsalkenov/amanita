@@ -11,7 +11,11 @@ use comfy_table::{
 use crate::state::{state_dir, ProcState, ProcStatus};
 
 #[derive(Args)]
-pub struct ListArgs;
+pub struct ListArgs {
+    #[arg(short, long)]
+    /// Hide offline processes
+    exclude_offline: bool,
+}
 
 impl ListArgs {
     pub async fn run(self) -> anyhow::Result<()> {
@@ -19,7 +23,6 @@ impl ListArgs {
         let mut rows = vec![];
 
         while let Some(Ok(process)) = process_dirs.next() {
-            log::info!("{:#?}", &process);
             let state = ProcState::receive(process.file_name().to_str().unwrap()).unwrap();
             let items = match state.status {
                 ProcStatus::Running(pid, mut process) => {
@@ -29,10 +32,16 @@ impl ListArgs {
                         "online".to_string(),
                         format!("{}%", process.cpu_percent().unwrap()),
                         format!("{}-Mb", process.memory_info().unwrap().vms().div(1_048_476)),
-                        format!("{} m", state.start_time.elapsed().unwrap().as_secs().div(60)),
+                        format!(
+                            "{} m",
+                            state.start_time.elapsed().unwrap().as_secs().div(60)
+                        ),
                     ]
                 }
                 ProcStatus::Stopped => {
+                    if self.exclude_offline {
+                        continue;
+                    }
                     vec![
                         "0".to_string(),
                         state.name,

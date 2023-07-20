@@ -10,7 +10,9 @@ use crate::{
 
 #[derive(Args)]
 pub struct StartArgs {
+    /// Process name
     name: String,
+    /// Command to run process
     command: String,
 }
 
