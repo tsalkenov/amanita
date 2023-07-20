@@ -1,0 +1,21 @@
+[package]
+name = "amanita"
+version = "0.1.0"
+edition = "2021"
+
+lib.name = "amanita"
+
+
+[dependencies]
+tokio = { version = "1.29", features = ["macros", "rt-multi-thread", "process"] } 
+clap = { version = "4.3", features = ["derive"] }
+psutil = "3.2.2"
+crossterm = { version = "0.26", features = ['serde']}
+comfy-table = "7"
+serde = { version = "1", features = ['derive'] }
+serde_with = { version = "3" }
+toml = "0.7"
+shlex = "1.1"
+log = "0.4"
+env_logger = "0.10"
+anyhow = "*"
