@@ -59,7 +59,7 @@ impl ProcState {
     }
     pub fn receive(name: &str) -> Result<Self, ()> {
         let root = state_dir().join(format!("procs/{name}"));
-        if !root.exists() {
+        if !root.join("state.toml").exists() {
             return Err(());
         }
 
