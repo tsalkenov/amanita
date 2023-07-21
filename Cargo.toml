@@ -1,7 +1,7 @@
 [package]
 name = "amanita"
 version = "0.1.0"
-authors = ["Tamerlan Salkenov <catamana@proton.me."]
+authors = ["Tamerlan Salkenov <catamana@proton.me>"]
 description = "minimal process managing tool"
 homepage = "https://github.com/tsalkenov/amanita"
 repository = "https://github.com/tsalkenov/amanita"

@@ -6,6 +6,7 @@ use std::{env, fs, path::PathBuf};
 use psutil::process::Process;
 
 use crate::schema::ProcSchema;
+use crate::{PROC_DIR, PROC_LOG, STATE_FILE};
 
 pub struct ProcState {
     pub name: String,
@@ -21,10 +22,10 @@ pub enum ProcStatus {
 
 impl ProcState {
     pub fn create(name: &str, command: &str) -> Result<Self, anyhow::Error> {
-        let root = state_dir().join(format!("procs/{name}"));
+        let root = state_dir().join(PROC_DIR).join(name);
         fs::create_dir_all(&root)?;
         let log_file =
-            fs::File::create(root.join("process.log")).expect("Failed to create log file");
+            fs::File::create(root.join(PROC_LOG)).expect("Failed to create log file");
         if let Ok(old_process) = ProcState::receive(name) {
             if let ProcStatus::Running(_, _) = old_process.status {
                 log::error!("Process with the same name is still running");
@@ -58,8 +59,8 @@ impl ProcState {
         }
     }
     pub fn receive(name: &str) -> Result<Self, ()> {
-        let root = state_dir().join(format!("procs/{name}"));
-        if !root.join("state.toml").exists() {
+        let root = state_dir().join(PROC_DIR).join(name);
+        if !root.join(STATE_FILE).exists() {
             return Err(());
         }
 
@@ -71,7 +72,7 @@ impl ProcState {
         Ok(state)
     }
     pub fn save_changes(&self) {
-        let root = state_dir().join(format!("procs/{}", self.name));
+        let root = state_dir().join(PROC_DIR).join(&self.name);
         let state_data = ProcSchema::from(self);
         let serialized_data = toml::to_string(&state_data).expect("Failed to serialize");
 
@@ -83,8 +84,8 @@ impl ProcState {
 
 pub fn state_dir() -> PathBuf {
     let home = env::var("HOME").unwrap();
-    let dir = PathBuf::from(format!("{home}/.amanita/"));
-    if !dir.join("procs").exists() {
+    let dir = PathBuf::from(home).join(".amanita");
+    if !dir.join(PROC_DIR).exists() {
         fs::create_dir_all(&dir.join("procs")).expect("Failed to create state dir for amanita");
     }
 
