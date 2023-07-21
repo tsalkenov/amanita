@@ -19,22 +19,22 @@ pub struct ListArgs {
 
 impl ListArgs {
     pub async fn run(self) -> anyhow::Result<()> {
-        let mut process_dirs = state_dir().join("procs").read_dir().unwrap();
+        let mut process_dirs = state_dir().join("procs").read_dir()?;
         let mut rows = vec![];
 
         while let Some(Ok(process)) = process_dirs.next() {
-            let state = ProcState::receive(process.file_name().to_str().unwrap()).unwrap();
+            let state = ProcState::receive(process.file_name().to_str().unwrap())?;
             let items = match state.status {
                 ProcStatus::Running(pid, mut process) => {
                     vec![
                         pid.to_string(),
                         state.name,
                         "online".to_string(),
-                        format!("{}%", process.cpu_percent().unwrap()),
-                        format!("{}-Mb", process.memory_info().unwrap().vms().div(1_048_476)),
+                        format!("{}%", process.cpu_percent()?),
+                        format!("{}-Mb", process.memory_info()?.vms().div(1_048_476)),
                         format!(
                             "{} m",
-                            state.start_time.elapsed().unwrap().as_secs().div(60)
+                            state.start_time.elapsed()?.as_secs().div(60)
                         ),
                     ]
                 }

@@ -18,11 +18,11 @@ impl KillArgs {
             ProcStatus::Running(_, process) => {
                 process.kill()?;
                 state.status = ProcStatus::Stopped;
-                state.save_changes();
+                state.save()?;
                 Ok(())
             },
             ProcStatus::Stopped => {
-               log::error!("Process is already terminated");
+                log::error!("Process is already terminated");
                 std::process::exit(1)
             }
         }

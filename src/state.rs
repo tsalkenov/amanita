@@ -4,9 +4,20 @@ use std::time::SystemTime;
 use std::{env, fs, path::PathBuf};
 
 use psutil::process::Process;
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, TimestampSeconds};
 
-use crate::schema::ProcSchema;
 use crate::{PROC_DIR, PROC_LOG, STATE_FILE};
+
+pub fn state_dir() -> PathBuf {
+    let home = env::var("HOME").unwrap();
+    let dir = PathBuf::from(home).join(".amanita");
+    if !dir.join(PROC_DIR).exists() {
+        fs::create_dir_all(&dir.join(PROC_DIR)).expect("Failed to create state dir for amanita");
+    }
+
+    dir
+}
 
 pub struct ProcState {
     pub name: String,
@@ -23,17 +34,21 @@ pub enum ProcStatus {
 impl ProcState {
     pub fn create(name: &str, command: &str) -> Result<Self, anyhow::Error> {
         let root = state_dir().join(PROC_DIR).join(name);
-        fs::create_dir_all(&root)?;
-        let log_file =
-            fs::File::create(root.join(PROC_LOG)).expect("Failed to create log file");
-        if let Ok(old_process) = ProcState::receive(name) {
-            if let ProcStatus::Running(_, _) = old_process.status {
-                log::error!("Process with the same name is still running");
-                std::process::exit(1)
+        match ProcState::receive(name) {
+            Ok(process) => match process.status {
+                ProcStatus::Running(_, _) => {
+                    log::error!("Process with the same name is still running");
+                    std::process::exit(1)
+                }
+                ProcStatus::Stopped => (),
+            },
+            Err(_) => {
+                fs::create_dir_all(&root)?;
             }
         }
 
-        let args = shlex::split(command).unwrap();
+        let log_file = fs::File::create(root.join(PROC_LOG)).expect("Failed to create log file");
+        let args = shlex::split(command).expect("Invalid command");
         match Command::new(&args[0])
             .args(&args[1..])
             .stdout(log_file)
@@ -58,36 +73,80 @@ impl ProcState {
             }
         }
     }
-    pub fn receive(name: &str) -> Result<Self, ()> {
-        let root = state_dir().join(PROC_DIR).join(name);
-        if !root.join(STATE_FILE).exists() {
-            return Err(());
-        }
-
-        let state_file = fs::read_to_string(root.join("state.toml")).unwrap();
-        let static_state: ProcSchema = toml::from_str(&state_file).unwrap();
-        let state = static_state.update();
-        state.save_changes();
-
-        Ok(state)
+    pub fn receive(name: &str) -> Result<Self, std::io::Error> {
+        let static_state = ProcStatic::read(name)?;
+        Ok(ProcState::from(&static_state))
     }
-    pub fn save_changes(&self) {
-        let root = state_dir().join(PROC_DIR).join(&self.name);
-        let state_data = ProcSchema::from(self);
-        let serialized_data = toml::to_string(&state_data).expect("Failed to serialize");
-
-        let mut state_file =
-            fs::File::create(root.join("state")).expect("Failed to open state file");
-        write!(state_file, "{}", serialized_data).expect("Failed to write to state file");
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        ProcStatic::from(self).write()
     }
 }
 
-pub fn state_dir() -> PathBuf {
-    let home = env::var("HOME").unwrap();
-    let dir = PathBuf::from(home).join(".amanita");
-    if !dir.join(PROC_DIR).exists() {
-        fs::create_dir_all(&dir.join("procs")).expect("Failed to create state dir for amanita");
+impl From<&ProcStatic> for ProcState {
+    fn from(value: &ProcStatic) -> Self {
+        let status = match value.status {
+            ProcStaticStatus::Running(pid) => match Process::new(pid) {
+                Ok(process) => ProcStatus::Running(pid, process),
+                Err(_) => ProcStatus::Stopped,
+            },
+            ProcStaticStatus::Stopped => ProcStatus::Stopped,
+        };
+        ProcState {
+            name: value.name.clone(),
+            command: value.command.clone(),
+            start_time: value.start_time,
+            status,
+        }
+    }
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize)]
+pub struct ProcStatic {
+    pub name: String,
+    pub command: String,
+    pub status: ProcStaticStatus,
+    #[serde_as(as = "TimestampSeconds")]
+    pub start_time: SystemTime,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum ProcStaticStatus {
+    Running(u32),
+    Stopped,
+}
+
+impl ProcStatic {
+    pub fn read(name: &str) -> Result<Self, std::io::Error> {
+        let root = state_dir().join(PROC_DIR).join(name);
+        let state_file = fs::read_to_string(root.join(STATE_FILE))?;
+
+        Ok(toml::from_str(&state_file).expect("Failed to deserialize state"))
     }
 
-    dir
+    pub fn write(&self) -> Result<(), std::io::Error> {
+        let root = state_dir().join(PROC_DIR).join(&self.name);
+        let mut state_file = fs::File::create(root)?;
+
+        write!(
+            state_file,
+            "{}",
+            toml::to_string(self).expect("Failed to serialize state")
+        )
+    }
+}
+
+impl From<&ProcState> for ProcStatic {
+    fn from(value: &ProcState) -> Self {
+        let status = match value.status {
+            ProcStatus::Running(pid, _) => ProcStaticStatus::Running(pid),
+            ProcStatus::Stopped => ProcStaticStatus::Stopped,
+        };
+        ProcStatic {
+            name: value.name.clone(),
+            command: value.command.clone(),
+            start_time: value.start_time,
+            status,
+        }
+    }
 }
