@@ -13,6 +13,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Start(args) => args.run().await,
         Commands::Kill(args) => args.run().await,
-        Commands::List(args) => args.run().await
+        Commands::List(args) => args.run().await,
+        Commands::Delete(args) => args.run().await
     }
 }

@@ -32,7 +32,7 @@ pub enum ProcStatus {
 }
 
 impl ProcState {
-    pub fn create(name: &str, command: &str) -> Result<Self, anyhow::Error> {
+    pub fn create(name: &str, command: &str) -> Result<Self, std::io::Error> {
         let root = state_dir().join(PROC_DIR).join(name);
         match ProcState::receive(name) {
             Ok(process) => match process.status {
@@ -47,7 +47,7 @@ impl ProcState {
             }
         }
 
-        let log_file = fs::File::create(root.join(PROC_LOG)).expect("Failed to create log file");
+        let log_file = fs::File::create(root.join(PROC_LOG))?;
         let args = shlex::split(command).expect("Invalid command");
         match Command::new(&args[0])
             .args(&args[1..])
@@ -56,7 +56,7 @@ impl ProcState {
         {
             Ok(r) => {
                 let pid = r.id();
-                let process = Process::new(pid)?;
+                let process = Process::new(pid).unwrap();
 
                 let state = ProcState {
                     status: ProcStatus::Running(pid, process),
@@ -125,7 +125,10 @@ impl ProcStatic {
     }
 
     pub fn write(&self) -> Result<(), std::io::Error> {
-        let root = state_dir().join(PROC_DIR).join(&self.name);
+        let root = state_dir()
+            .join(PROC_DIR)
+            .join(&self.name)
+            .join(STATE_FILE);
         let mut state_file = fs::File::create(root)?;
 
         write!(
@@ -133,6 +136,11 @@ impl ProcStatic {
             "{}",
             toml::to_string(self).expect("Failed to serialize state")
         )
+    }
+
+    pub fn delete(self) -> Result<(), std::io::Error> {
+        let root = state_dir().join(PROC_DIR).join(&self.name);
+        fs::remove_dir_all(root)
     }
 }
 

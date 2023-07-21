@@ -9,7 +9,7 @@ pub struct KillArgs {
 }
 
 impl KillArgs {
-    pub async fn run(&self) -> anyhow::Result<()> {
+    pub async fn run(self) -> anyhow::Result<()> {
         let Ok(mut state) = ProcState::receive(&self.name) else {
             log::error!("Process has never been created");
             std::process::exit(1)
@@ -19,6 +19,8 @@ impl KillArgs {
                 process.kill()?;
                 state.status = ProcStatus::Stopped;
                 state.save()?;
+
+                log::info!("Process killed successfully");
                 Ok(())
             },
             ProcStatus::Stopped => {

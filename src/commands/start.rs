@@ -14,7 +14,7 @@ impl StartArgs {
     pub async fn run(self) -> anyhow::Result<()> {
         match ProcState::create(&self.name, &self.command) {
             Ok(state) => {
-                log::info!("Succesfully spawned process");
+                log::info!("Successfully spawned process");
                 state.save()?;
 
                 log::info!("Saved process");

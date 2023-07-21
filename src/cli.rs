@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::commands::{start::StartArgs, kill::KillArgs, list::ListArgs};
+use crate::commands::{start::StartArgs, kill::KillArgs, list::ListArgs, delete::DeleteArgs};
 
 
 #[derive(Parser)]
@@ -18,5 +18,7 @@ pub enum Commands {
     /// Kill process
     Kill(KillArgs),
     /// List all running and stopped processes
-    List(ListArgs)
+    List(ListArgs),
+    /// Permanently remove any state conne related to process
+    Delete(DeleteArgs)
 }
