@@ -1,30 +1,35 @@
+use std::fs;
+
 use clap::Args;
 
-use crate::state::{ProcState, ProcStatus, ProcStatic};
+use crate::{
+    process::{state_dir, Proc},
+    PROC_DIR,
+};
 
 #[derive(Args)]
 pub struct DeleteArgs {
-    name: String
+    name: String,
 }
 
 impl DeleteArgs {
     pub async fn run(self) -> anyhow::Result<()> {
-        match ProcState::receive(&self.name) {
-            Ok(process) => match process.status {
-                ProcStatus::Running(pid, _) => {
-                    log::error!("Cannot delete {} as it's occupying {} pid, kill it first", process.name, pid);
-                    std::process::exit(1)
-                }
-                ProcStatus::Stopped => {
-                    ProcStatic::from(&process).delete()?;
-                    log::info!("Process folder removed");
-                    Ok(())
-                }
+        let dir = state_dir().join(PROC_DIR).join(&self.name);
+
+        match Proc::get(&self.name)? {
+            Proc::Stopped => {
+                fs::remove_dir_all(dir)?;
             }
-            Err(_) => {
-                log::error!("Process does not exist");
+            Proc::NotFound => {
+                log::error!("Cannot delete non existant process");
+                std::process::exit(1)
+            }
+            Proc::Running(pid) => {
+                log::error!("Cannot delete non running process. pid: {pid}");
                 std::process::exit(1)
             }
         }
+
+        Ok(())
     }
 }

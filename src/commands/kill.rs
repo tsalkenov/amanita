@@ -1,6 +1,7 @@
 use clap::Args;
+use psutil::process::Process;
 
-use crate::state::{ProcState, ProcStatus};
+use crate::process::Proc;
 
 #[derive(Args)]
 pub struct KillArgs {
@@ -10,22 +11,19 @@ pub struct KillArgs {
 
 impl KillArgs {
     pub async fn run(self) -> anyhow::Result<()> {
-        let Ok(mut state) = ProcState::receive(&self.name) else {
-            log::error!("Process has never been created");
-            std::process::exit(1)
-        };
-        match state.status {
-            ProcStatus::Running(_, process) => {
-                process.kill()?;
-                state.status = ProcStatus::Stopped;
-                state.save()?;
-
-                log::info!("Process killed successfully");
-                Ok(())
-            },
-            ProcStatus::Stopped => {
+        match Proc::get(&self.name)? {
+            Proc::NotFound => {
+                log::error!("Process not found");
+                std::process::exit(1)
+            }
+            Proc::Stopped => {
                 log::error!("Process is already terminated");
                 std::process::exit(1)
+            }
+            Proc::Running(pid) => {
+                Process::new(pid)?.kill()?;
+                log::info!("Process killed successfully");
+                Ok(())
             }
         }
     }

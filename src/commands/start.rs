@@ -1,6 +1,6 @@
 use clap::Args;
 
-use crate::state::ProcState;
+use crate::process::Proc;
 
 #[derive(Args)]
 pub struct StartArgs {
@@ -12,12 +12,11 @@ pub struct StartArgs {
 
 impl StartArgs {
     pub async fn run(self) -> anyhow::Result<()> {
-        match ProcState::create(&self.name, &self.command) {
-            Ok(state) => {
-                log::info!("Successfully spawned process");
-                state.save()?;
-
-                log::info!("Saved process");
+        match Proc::create(&self.name, &self.command) {
+            Ok(status) => {
+                if let Proc::Running(pid) = status {
+                    log::info!("Successfully spawned process {}", pid);
+                }
                 Ok(())
             }
             Err(e) => {

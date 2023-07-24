@@ -1,14 +1,15 @@
-use std::ops::Div;
-
 use clap::Args;
-
 use comfy_table::{
     modifiers::{UTF8_ROUND_CORNERS, UTF8_SOLID_INNER_BORDERS},
     presets::UTF8_FULL,
     Cell, Color, Row,
 };
+use psutil::{host, process::Process};
 
-use crate::state::{state_dir, ProcState, ProcStatus};
+use crate::{
+    process::{state_dir, Proc},
+    PROC_DIR,
+};
 
 #[derive(Args)]
 pub struct ListArgs {
@@ -19,38 +20,41 @@ pub struct ListArgs {
 
 impl ListArgs {
     pub async fn run(self) -> anyhow::Result<()> {
-        let mut process_dirs = state_dir().join("procs").read_dir()?;
+        let mut process_dirs = state_dir().join(PROC_DIR).read_dir()?;
         let mut rows = vec![];
-
         while let Some(Ok(process)) = process_dirs.next() {
-            let state = ProcState::receive(process.file_name().to_str().unwrap())?;
-            let items = match state.status {
-                ProcStatus::Running(pid, mut process) => {
+            let os_name = process.file_name();
+            let name = os_name.into_string().unwrap();
+            let status = Proc::get(&name)?;
+            let items = match status {
+                Proc::Running(pid) => {
+                    let mut process = Process::new(pid)?;
                     vec![
                         pid.to_string(),
-                        state.name,
+                        name,
                         "online".to_string(),
                         format!("{}%", process.cpu_percent()?),
-                        format!("{}-Mb", process.memory_info()?.vms().div(1_048_476)),
+                        format!("{}-Mb", process.memory_info()?.vms() / 1_048_476),
                         format!(
                             "{} m",
-                            state.start_time.elapsed()?.as_secs().div(60)
+                            (host::uptime()? - process.create_time()).as_secs() / 60
                         ),
                     ]
                 }
-                ProcStatus::Stopped => {
+                Proc::Stopped => {
                     if self.exclude_offline {
                         continue;
                     }
                     vec![
                         "0".to_string(),
-                        state.name,
+                        name,
                         "offline".to_string(),
                         "0%".to_string(),
                         "0-Mb".to_string(),
                         "0 m".to_string(),
                     ]
                 }
+                Proc::NotFound => continue,
             };
             let cells: Vec<Cell> = items.into_iter().map(Cell::from).collect();
 
