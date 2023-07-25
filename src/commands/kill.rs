@@ -10,7 +10,7 @@ pub struct KillArgs {
 }
 
 impl KillArgs {
-    pub async fn run(self) -> anyhow::Result<()> {
+    pub fn run(self) -> anyhow::Result<()> {
         match Proc::get(&self.name)? {
             Proc::NotFound => {
                 log::error!("Process not found");

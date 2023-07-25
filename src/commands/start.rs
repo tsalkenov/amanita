@@ -8,16 +8,24 @@ pub struct StartArgs {
     name: String,
     /// Command to run process
     command: String,
+    /// Restart process on failure
+    #[arg(short, long)]
+    restart: bool,
 }
 
 impl StartArgs {
-    pub async fn run(self) -> anyhow::Result<()> {
-        match Proc::create(&self.name, &self.command) {
-            Ok(status) => {
-                if let Proc::Running(pid) = status {
+    pub fn run(self) -> anyhow::Result<()> {
+        match Proc::create(&self.name, &self.command, self.restart) {
+            Ok(status) => match status {
+                Proc::Running(pid) => {
                     log::info!("Successfully spawned process {}", pid);
-                }
-                Ok(())
+                    Ok(())
+                },
+                Proc::Stopped => {
+                    log::info!("Process with name '{}' has finished", self.name);
+                    Ok(())
+                },
+                Proc::NotFound => unreachable!()
             }
             Err(e) => {
                 log::error!("Error during process spawning {}", e);

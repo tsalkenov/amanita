@@ -1,8 +1,7 @@
 use amanita::{cli::{Cli, Commands}, process::setup_state};
 use clap::Parser;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter(None, log::LevelFilter::Info)
         .init();
@@ -15,9 +14,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Commands::Start(args) => args.run().await,
-        Commands::Kill(args) => args.run().await,
-        Commands::List(args) => args.run().await,
-        Commands::Delete(args) => args.run().await
+        Commands::Start(args) => args.run(),
+        Commands::Kill(args) => args.run(),
+        Commands::List(args) => args.run(),
+        Commands::Delete(args) => args.run()
     }
 }

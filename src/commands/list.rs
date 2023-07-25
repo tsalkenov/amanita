@@ -19,7 +19,7 @@ pub struct ListArgs {
 }
 
 impl ListArgs {
-    pub async fn run(self) -> anyhow::Result<()> {
+    pub fn run(self) -> anyhow::Result<()> {
         let mut process_dirs = state_dir().join(PROC_DIR).read_dir()?;
         let mut rows = vec![];
         while let Some(Ok(process)) = process_dirs.next() {

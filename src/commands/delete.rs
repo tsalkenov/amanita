@@ -13,7 +13,7 @@ pub struct DeleteArgs {
 }
 
 impl DeleteArgs {
-    pub async fn run(self) -> anyhow::Result<()> {
+    pub fn run(self) -> anyhow::Result<()> {
         let dir = state_dir().join(PROC_DIR).join(&self.name);
 
         match Proc::get(&self.name)? {
